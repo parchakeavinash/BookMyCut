@@ -1,0 +1,32 @@
+# Environment files & secrets
+.env
+.env*
+*.env
+*.env.local
+
+# Excluded documentation & planning artifacts
+BarberQ_Blueprint.md
+BarberQ — Product Specification & Implementation.md
+feature.txt
+plan.md
+slot_swap_feature.md
+test_concurrency.js
+test_concurrency.cjs
+
+# Node & dependencies
+node_modules/
+package-lock.json
+
+# Supabase CLI temp
+supabase/.temp/
+
+
+# Expo & Web
+.expo/
+dist/
+web-build/
+*.tsbuildinfo
+
+# OS files
+.DS_Store
+Thumbs.db
