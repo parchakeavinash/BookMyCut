@@ -117,6 +117,13 @@ export interface StaffHour {
   is_working: boolean;
 }
 
+export interface ShopClosedDate {
+  id: string;
+  shop_id: string;
+  closed_date: string;
+  reason: string | null;
+}
+
 export type BookingStatus = 'confirmed' | 'cancelled' | 'completed' | 'no_show';
 
 export interface Booking {
