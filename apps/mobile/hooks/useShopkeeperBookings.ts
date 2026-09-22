@@ -1,7 +1,8 @@
 // ============================================================
 // BarberQ — useShopkeeperBookings Hook
-// Provides schedule management, live queue metrics, and booking
-// lifecycle actions (Complete, Cancel, No-Show) with Realtime sync.
+// Provides schedule management, live queue metrics, calendar dots,
+// and booking lifecycle actions (Confirm, Complete, Cancel, No-Show)
+// with Supabase Realtime sync.
 // ============================================================
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -40,16 +41,18 @@ export function useShopkeeperBookings(options: UseShopkeeperBookingsOptions = {}
 
   const [dateBookings, setDateBookings] = useState<Booking[]>([]);
   const [todayBookings, setTodayBookings] = useState<Booking[]>([]);
+  const [weekCounts, setWeekCounts] = useState<Record<string, number>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isActionLoading, setIsActionLoading] = useState(false);
   const [newBookingAlert, setNewBookingAlert] = useState<Booking | null>(null);
 
-  // Fetch bookings for the selected date and for today (to compute metrics)
+  // Fetch bookings for the selected date, today metrics, and week-level appointment counts
   const fetchBookings = useCallback(async () => {
     if (!user || !shopId) {
       setDateBookings([]);
       setTodayBookings([]);
+      setWeekCounts({});
       setIsLoading(false);
       return;
     }
@@ -119,6 +122,33 @@ export function useShopkeeperBookings(options: UseShopkeeperBookingsOptions = {}
         if (todayErr) throw todayErr;
         setTodayBookings((todayData || []) as Booking[]);
       }
+
+      // 3. Fetch 18-day window for calendar week appointment dots
+      const startWindow = new Date();
+      startWindow.setDate(startWindow.getDate() - 3);
+      const endWindow = new Date();
+      endWindow.setDate(endWindow.getDate() + 14);
+
+      const { data: countData, error: countErr } = await supabase
+        .from('bookings')
+        .select('start_time, status')
+        .eq('shop_id', shopId)
+        .neq('status', 'cancelled')
+        .gte('start_time', startWindow.toISOString())
+        .lte('start_time', endWindow.toISOString());
+
+      if (!countErr && countData) {
+        const counts: Record<string, number> = {};
+        countData.forEach((row) => {
+          const d = new Date(row.start_time);
+          const y = d.getFullYear();
+          const m = String(d.getMonth() + 1).padStart(2, '0');
+          const day = String(d.getDate()).padStart(2, '0');
+          const k = `${y}-${m}-${day}`;
+          counts[k] = (counts[k] || 0) + 1;
+        });
+        setWeekCounts(counts);
+      }
     } catch (err: any) {
       console.error('Error fetching shopkeeper bookings:', err);
       setError(err.message || 'Failed to load bookings.');
@@ -131,7 +161,7 @@ export function useShopkeeperBookings(options: UseShopkeeperBookingsOptions = {}
     fetchBookings();
   }, [fetchBookings]);
 
-  // Real-time subscription on bookings table for this shop
+  // Real-time subscription on bookings table for this shop (instant sub-2s update)
   useEffect(() => {
     if (!shopId) return;
 
@@ -246,7 +276,34 @@ export function useShopkeeperBookings(options: UseShopkeeperBookingsOptions = {}
     }
   };
 
-  // 3. Cancel Booking
+  // 3. Confirm Booking
+  const confirmBooking = async (bookingId: string) => {
+    if (!user) throw new Error('Not authenticated');
+    setIsActionLoading(true);
+
+    try {
+      const { error: rpcErr } = await supabase.rpc('confirm_booking', {
+        p_booking_id: bookingId,
+        p_actor_id: user.id,
+      });
+
+      if (rpcErr) throw rpcErr;
+
+      setDateBookings((prev) =>
+        prev.map((b) => (b.id === bookingId ? { ...b, status: 'confirmed' } : b))
+      );
+      setTodayBookings((prev) =>
+        prev.map((b) => (b.id === bookingId ? { ...b, status: 'confirmed' } : b))
+      );
+    } catch (err: any) {
+      console.error('Error confirming booking:', err);
+      throw err;
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
+
+  // 4. Cancel Booking
   const cancelBooking = async (bookingId: string, reason: string) => {
     if (!user) throw new Error('Not authenticated');
     setIsActionLoading(true);
@@ -301,6 +358,7 @@ export function useShopkeeperBookings(options: UseShopkeeperBookingsOptions = {}
   return {
     bookings: dateBookings,
     stats,
+    weekCounts,
     isLoading,
     isActionLoading,
     error,
@@ -309,6 +367,7 @@ export function useShopkeeperBookings(options: UseShopkeeperBookingsOptions = {}
     refresh: fetchBookings,
     completeBooking,
     markNoShow,
+    confirmBooking,
     cancelBooking,
   };
 }

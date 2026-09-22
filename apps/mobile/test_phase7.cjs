@@ -141,6 +141,18 @@ async function runPhase7Tests() {
     console.log('⚠️ cancel_booking returned without error (unusual for fake ID)');
   }
 
+  // 4d. confirm_booking
+  const { error: confErr } = await supabase.rpc('confirm_booking', {
+    p_booking_id: fakeId,
+    p_actor_id: fakeId,
+  });
+
+  if (confErr) {
+    console.log(`✅ confirm_booking RPC guard active: "${confErr.message}"`);
+  } else {
+    console.log('⚠️ confirm_booking returned without error (unusual for fake ID)');
+  }
+
   console.log('\n🎉 Phase 7 test script execution complete!');
 }
 

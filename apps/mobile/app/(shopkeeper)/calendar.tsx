@@ -1,7 +1,8 @@
 // ============================================================
 // BarberQ — Shopkeeper Schedule & Calendar Screen
-// Comprehensive day-by-day appointment timeline, chair/stylist
-// filtering, and booking action management.
+// Week view with appointment dots, day-by-day appointment timeline,
+// chair/stylist filtering, block/unblock date (shop_closed_dates),
+// and full appointment detail modal (Confirm, Complete, Cancel, No-Show).
 // ============================================================
 
 import React, { useState, useMemo } from 'react';
@@ -27,7 +28,14 @@ import { Booking, BookingStatus } from '@/types';
 
 export default function ShopkeeperCalendarScreen() {
   const router = useRouter();
-  const { shop, staff, hours, isLoading: isShopLoading } = useShopkeeper();
+  const {
+    shop,
+    staff,
+    closedDates,
+    addClosedDate,
+    deleteClosedDate,
+    isLoading: isShopLoading,
+  } = useShopkeeper();
 
   // Format today as YYYY-MM-DD
   const todayStr = useMemo(() => {
@@ -41,18 +49,29 @@ export default function ShopkeeperCalendarScreen() {
   const [selectedDate, setSelectedDate] = useState(todayStr);
   const [selectedStaffId, setSelectedStaffId] = useState<string | null>(null);
 
+  // Appointment Detail Modal State
+  const [detailBooking, setDetailBooking] = useState<Booking | null>(null);
+
   // Cancel Modal State
   const [cancelModalVisible, setCancelModalVisible] = useState(false);
   const [targetBooking, setTargetBooking] = useState<Booking | null>(null);
   const [cancelReason, setCancelReason] = useState('Barber unavailable');
   const [customReason, setCustomReason] = useState('');
 
-  // Bookings hook
+  // Block Date Modal State
+  const [blockModalVisible, setBlockModalVisible] = useState(false);
+  const [blockReason, setBlockReason] = useState('Public Holiday');
+  const [customBlockReason, setCustomBlockReason] = useState('');
+  const [isBlocking, setIsBlocking] = useState(false);
+
+  // Bookings hook with weekCounts
   const {
     bookings,
+    weekCounts,
     isLoading: isBookingsLoading,
     isActionLoading,
     refresh,
+    confirmBooking,
     completeBooking,
     markNoShow,
     cancelBooking,
@@ -63,7 +82,7 @@ export default function ShopkeeperCalendarScreen() {
     statusFilter: 'all',
   });
 
-  // Calendar dates (14 days forward and 3 days back for full flexibility)
+  // Calendar dates (18-day rolling window: 3 past days, today, 14 future days)
   const calendarDays = useMemo(() => {
     const list = [];
     const base = new Date();
@@ -81,6 +100,11 @@ export default function ShopkeeperCalendarScreen() {
     }
     return list;
   }, []);
+
+  // Check if active selected date is blocked in shop_closed_dates
+  const activeClosedDate = useMemo(() => {
+    return closedDates.find((cd) => cd.closed_date === selectedDate) || null;
+  }, [closedDates, selectedDate]);
 
   // Format 12-hour time
   const formatTime = (isoString: string) => {
@@ -101,6 +125,7 @@ export default function ShopkeeperCalendarScreen() {
     }
   };
 
+  // 1. Complete
   const handleComplete = (booking: Booking) => {
     confirmAction(
       'Complete Appointment',
@@ -108,6 +133,7 @@ export default function ShopkeeperCalendarScreen() {
       async () => {
         try {
           await completeBooking(booking.id);
+          setDetailBooking(null);
         } catch (err: any) {
           const msg = err.message || 'Failed to complete booking';
           if (Platform.OS === 'web') window.alert(msg);
@@ -117,6 +143,7 @@ export default function ShopkeeperCalendarScreen() {
     );
   };
 
+  // 2. No-Show
   const handleNoShow = (booking: Booking) => {
     confirmAction(
       'Mark Customer as No-Show?',
@@ -124,6 +151,7 @@ export default function ShopkeeperCalendarScreen() {
       async () => {
         try {
           await markNoShow(booking.id);
+          setDetailBooking(null);
         } catch (err: any) {
           const msg = err.message || 'Failed to mark no-show';
           if (Platform.OS === 'web') window.alert(msg);
@@ -133,6 +161,19 @@ export default function ShopkeeperCalendarScreen() {
     );
   };
 
+  // 3. Confirm
+  const handleConfirm = async (booking: Booking) => {
+    try {
+      await confirmBooking(booking.id);
+      setDetailBooking(null);
+    } catch (err: any) {
+      const msg = err.message || 'Failed to confirm booking';
+      if (Platform.OS === 'web') window.alert(msg);
+      else Alert.alert('Error', msg);
+    }
+  };
+
+  // 4. Cancel
   const openCancelModal = (booking: Booking) => {
     setTargetBooking(booking);
     setCancelReason('Barber unavailable');
@@ -147,11 +188,45 @@ export default function ShopkeeperCalendarScreen() {
       await cancelBooking(targetBooking.id, finalReason);
       setCancelModalVisible(false);
       setTargetBooking(null);
+      setDetailBooking(null);
     } catch (err: any) {
       const msg = err.message || 'Failed to cancel booking';
       if (Platform.OS === 'web') window.alert(msg);
       else Alert.alert('Error', msg);
     }
+  };
+
+  // 5. Block Date Action
+  const handleBlockDate = async () => {
+    const finalReason = blockReason === 'Other' ? customBlockReason.trim() || 'Shop Closed' : blockReason;
+    setIsBlocking(true);
+    try {
+      await addClosedDate(selectedDate, finalReason);
+      setBlockModalVisible(false);
+    } catch (err: any) {
+      const msg = err.message || 'Failed to block date';
+      if (Platform.OS === 'web') window.alert(msg);
+      else Alert.alert('Error', msg);
+    } finally {
+      setIsBlocking(false);
+    }
+  };
+
+  // 6. Unblock Date Action
+  const handleUnblockDate = (closedDateId: string) => {
+    confirmAction(
+      'Unblock This Date',
+      'Make this date available for customer bookings again?',
+      async () => {
+        try {
+          await deleteClosedDate(closedDateId);
+        } catch (err: any) {
+          const msg = err.message || 'Failed to unblock date';
+          if (Platform.OS === 'web') window.alert(msg);
+          else Alert.alert('Error', msg);
+        }
+      }
+    );
   };
 
   const handleCall = (phone: string | null | undefined) => {
@@ -179,7 +254,6 @@ export default function ShopkeeperCalendarScreen() {
     }
   };
 
-  // Human readable label for active date
   const activeDateLabel = useMemo(() => {
     const d = new Date(`${selectedDate}T12:00:00`);
     return d.toLocaleDateString('en-US', {
@@ -211,17 +285,21 @@ export default function ShopkeeperCalendarScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Interactive Horizontal Calendar Strip */}
+      {/* Interactive Calendar Week View with Appointment Dots */}
       <View style={styles.calendarStripContainer}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.calendarStrip}>
           {calendarDays.map((item) => {
             const isSelected = selectedDate === item.dateStr;
+            const count = weekCounts[item.dateStr] || 0;
+            const isBlocked = closedDates.some((cd) => cd.closed_date === item.dateStr);
+
             return (
               <TouchableOpacity
                 key={item.dateStr}
                 style={[
                   styles.dayCard,
                   isSelected && styles.dayCardSelected,
+                  isBlocked && !isSelected && styles.dayCardBlocked,
                   item.isPast && !isSelected && styles.dayCardPast,
                 ]}
                 onPress={() => setSelectedDate(item.dateStr)}
@@ -235,10 +313,60 @@ export default function ShopkeeperCalendarScreen() {
                 <Text style={[styles.dayCardMonth, isSelected && styles.dayCardTextSelected]}>
                   {item.monthName}
                 </Text>
+
+                {/* Appointment Dots Indicator */}
+                <View style={styles.dotsRow}>
+                  {isBlocked ? (
+                    <Text style={{ fontSize: 9 }}>🔒</Text>
+                  ) : count > 0 ? (
+                    <View style={styles.dotBadge}>
+                      <View style={[styles.dot, isSelected && { backgroundColor: '#fff' }]} />
+                      <Text style={[styles.dotCountText, isSelected && { color: '#fff' }]}>
+                        {count}
+                      </Text>
+                    </View>
+                  ) : (
+                    <View style={styles.dotPlaceholder} />
+                  )}
+                </View>
               </TouchableOpacity>
             );
           })}
         </ScrollView>
+      </View>
+
+      {/* Block Date Banner or Button */}
+      <View style={styles.blockDateBar}>
+        {activeClosedDate ? (
+          <View style={styles.blockedBanner}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.blockedTitle}>🔒 Salon Closed This Day</Text>
+              <Text style={styles.blockedSub}>
+                Reason: {activeClosedDate.reason || 'Closed for bookings'}
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={styles.unblockBtn}
+              onPress={() => handleUnblockDate(activeClosedDate.id)}
+            >
+              <Text style={styles.unblockBtnText}>Unblock Day</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={styles.unblockedBar}>
+            <Text style={styles.unblockedText}>Day open for bookings</Text>
+            <TouchableOpacity
+              style={styles.blockThisDateBtn}
+              onPress={() => {
+                setBlockReason('Public Holiday');
+                setCustomBlockReason('');
+                setBlockModalVisible(true);
+              }}
+            >
+              <Text style={styles.blockThisDateText}>🚫 Block This Date</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
 
       {/* Stylist Filter Strip */}
@@ -288,7 +416,9 @@ export default function ShopkeeperCalendarScreen() {
             <Text style={styles.emptyIcon}>☕</Text>
             <Text style={styles.emptyTitle}>No Appointments Scheduled</Text>
             <Text style={styles.emptySubtitle}>
-              All chairs are open for walk-ins or new online bookings on this date.
+              {activeClosedDate
+                ? 'This date is blocked. Customers cannot book on this day.'
+                : 'All chairs are open for walk-ins or new online bookings on this date.'}
             </Text>
           </View>
         ) : (
@@ -298,7 +428,12 @@ export default function ShopkeeperCalendarScreen() {
               const isConfirmed = b.status === 'confirmed';
 
               return (
-                <View key={b.id} style={styles.bookingCard}>
+                <TouchableOpacity
+                  key={b.id}
+                  style={styles.bookingCard}
+                  activeOpacity={0.85}
+                  onPress={() => setDetailBooking(b)}
+                >
                   <View style={styles.cardTop}>
                     <View style={styles.timeTag}>
                       <Text style={styles.timeTagText}>
@@ -322,7 +457,10 @@ export default function ShopkeeperCalendarScreen() {
                     {b.customer?.phone && (
                       <TouchableOpacity
                         style={styles.callCircle}
-                        onPress={() => handleCall(b.customer?.phone)}
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          handleCall(b.customer?.phone);
+                        }}
                       >
                         <Text style={styles.callCircleText}>📞</Text>
                       </TouchableOpacity>
@@ -339,7 +477,10 @@ export default function ShopkeeperCalendarScreen() {
                     <View style={styles.actionsBar}>
                       <TouchableOpacity
                         style={[styles.actionButton, styles.actionComplete]}
-                        onPress={() => handleComplete(b)}
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          handleComplete(b);
+                        }}
                         disabled={isActionLoading}
                       >
                         <Text style={styles.actionCompleteText}>✅ Complete</Text>
@@ -347,7 +488,10 @@ export default function ShopkeeperCalendarScreen() {
 
                       <TouchableOpacity
                         style={[styles.actionButton, styles.actionNoShow]}
-                        onPress={() => handleNoShow(b)}
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          handleNoShow(b);
+                        }}
                         disabled={isActionLoading}
                       >
                         <Text style={styles.actionNoShowText}>⚠️ No-Show</Text>
@@ -355,19 +499,106 @@ export default function ShopkeeperCalendarScreen() {
 
                       <TouchableOpacity
                         style={[styles.actionButton, styles.actionCancel]}
-                        onPress={() => openCancelModal(b)}
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          openCancelModal(b);
+                        }}
                         disabled={isActionLoading}
                       >
                         <Text style={styles.actionCancelText}>✕ Cancel</Text>
                       </TouchableOpacity>
                     </View>
                   )}
-                </View>
+                </TouchableOpacity>
               );
             })}
           </View>
         )}
       </ScrollView>
+
+      {/* Appointment Detail Modal */}
+      <Modal visible={!!detailBooking} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Text style={styles.modalTitle}>Appointment Details</Text>
+              <TouchableOpacity onPress={() => setDetailBooking(null)}>
+                <Text style={{ fontSize: 18, color: Colors.textMuted, fontWeight: 'bold' }}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            {detailBooking && (
+              <ScrollView style={{ maxHeight: 380 }} showsVerticalScrollIndicator={false}>
+                <View style={{ gap: Spacing.sm }}>
+                  <View style={styles.detailSection}>
+                    <Text style={styles.detailLabel}>CUSTOMER</Text>
+                    <Text style={styles.detailValueBold}>{detailBooking.customer?.full_name || 'Customer'}</Text>
+                    <Text style={styles.detailValue}>Phone: {detailBooking.customer?.phone || 'Not provided'}</Text>
+                    {(detailBooking.customer?.no_show_count ?? 0) > 0 && (
+                      <Text style={{ color: '#F59E0B', fontSize: Typography.xs, fontWeight: 'bold' }}>
+                        ⚠️ Past No-Shows: {detailBooking.customer?.no_show_count}
+                      </Text>
+                    )}
+                  </View>
+
+                  <View style={styles.detailSection}>
+                    <Text style={styles.detailLabel}>SERVICE & BARBER</Text>
+                    <Text style={styles.detailValueBold}>{detailBooking.service_name}</Text>
+                    <Text style={styles.detailValue}>
+                      ₹{detailBooking.service_price} • {detailBooking.service_duration_mins} mins
+                    </Text>
+                    <Text style={styles.detailValue}>
+                      Stylist: {detailBooking.staff_name || detailBooking.staff?.name || 'Any Barber'}
+                    </Text>
+                  </View>
+
+                  <View style={styles.detailSection}>
+                    <Text style={styles.detailLabel}>SCHEDULED TIME</Text>
+                    <Text style={styles.detailValueBold}>
+                      {formatTime(detailBooking.start_time)} – {formatTime(detailBooking.end_time)}
+                    </Text>
+                    <Text style={styles.detailValue}>Status: {detailBooking.status.toUpperCase()}</Text>
+                  </View>
+
+                  {detailBooking.customer_note && (
+                    <View style={styles.detailSection}>
+                      <Text style={styles.detailLabel}>CUSTOMER NOTE</Text>
+                      <Text style={[styles.detailValue, { fontStyle: 'italic' }]}>
+                        "{detailBooking.customer_note}"
+                      </Text>
+                    </View>
+                  )}
+
+                  {detailBooking.status === 'confirmed' && (
+                    <View style={{ gap: Spacing.xs, marginTop: Spacing.sm }}>
+                      <TouchableOpacity
+                        style={[styles.modalActionBtn, { backgroundColor: Colors.success }]}
+                        onPress={() => handleComplete(detailBooking)}
+                      >
+                        <Text style={styles.modalActionBtnText}>✅ Mark as Completed</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={[styles.modalActionBtn, { backgroundColor: 'rgba(245, 158, 11, 0.15)', borderWidth: 1, borderColor: '#F59E0B' }]}
+                        onPress={() => handleNoShow(detailBooking)}
+                      >
+                        <Text style={[styles.modalActionBtnText, { color: '#F59E0B' }]}>⚠️ Mark as No-Show</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={[styles.modalActionBtn, { backgroundColor: 'rgba(239, 68, 68, 0.15)', borderWidth: 1, borderColor: '#EF4444' }]}
+                        onPress={() => openCancelModal(detailBooking)}
+                      >
+                        <Text style={[styles.modalActionBtnText, { color: '#EF4444' }]}>✕ Cancel Appointment</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </View>
+              </ScrollView>
+            )}
+          </View>
+        </View>
+      </Modal>
 
       {/* Cancel Appointment Modal */}
       <Modal visible={cancelModalVisible} transparent animationType="fade">
@@ -427,6 +658,65 @@ export default function ShopkeeperCalendarScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Block Date Modal */}
+      <Modal visible={blockModalVisible} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Block Date ({selectedDate})</Text>
+            <Text style={styles.modalSubtitle}>
+              Blocking this date will stop customers from booking appointments on this day.
+            </Text>
+
+            {['Public Holiday', 'Salon Maintenance / Renovation', 'Staff Training / Team Outing', 'Other'].map(
+              (reason) => {
+                const isSelected = blockReason === reason;
+                return (
+                  <TouchableOpacity
+                    key={reason}
+                    style={[styles.reasonOption, isSelected && styles.reasonOptionSelected]}
+                    onPress={() => setBlockReason(reason)}
+                  >
+                    <Text style={[styles.reasonText, isSelected && styles.reasonTextSelected]}>
+                      {isSelected ? '◉ ' : '○ '} {reason}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              }
+            )}
+
+            {blockReason === 'Other' && (
+              <TextInput
+                style={styles.customReasonInput}
+                placeholder="Reason for closing salon..."
+                placeholderTextColor={Colors.textMuted}
+                value={customBlockReason}
+                onChangeText={setCustomBlockReason}
+              />
+            )}
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={styles.modalCancelBtn}
+                onPress={() => setBlockModalVisible(false)}
+              >
+                <Text style={styles.modalCancelBtnText}>Dismiss</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalConfirmBtn, { backgroundColor: '#F59E0B' }]}
+                onPress={handleBlockDate}
+                disabled={isBlocking}
+              >
+                {isBlocking ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.modalConfirmBtnText}>Block Date</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -460,22 +750,70 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     borderWidth: 1,
     borderColor: Colors.border,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
     borderRadius: Radius.lg,
     alignItems: 'center',
-    minWidth: 62,
+    minWidth: 64,
     ...Shadow.sm,
   },
   dayCardSelected: {
     backgroundColor: Colors.accent,
     borderColor: Colors.accent,
   },
+  dayCardBlocked: {
+    borderColor: 'rgba(245, 158, 11, 0.4)',
+    backgroundColor: 'rgba(245, 158, 11, 0.05)',
+  },
   dayCardPast: { opacity: 0.5 },
   dayCardName: { fontSize: 11, fontWeight: Typography.semibold, color: Colors.textMuted },
   dayCardNum: { fontSize: Typography.base, fontWeight: Typography.bold, color: Colors.textPrimary, marginVertical: 2 },
   dayCardMonth: { fontSize: 10, color: Colors.textMuted },
   dayCardTextSelected: { color: '#fff' },
+
+  // Dots Row
+  dotsRow: { marginTop: 4, height: 14, justifyContent: 'center', alignItems: 'center' },
+  dotBadge: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  dot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: Colors.success },
+  dotCountText: { fontSize: 9, fontWeight: Typography.bold, color: Colors.success },
+  dotPlaceholder: { height: 5 },
+
+  // Block Date Bar
+  blockDateBar: { paddingHorizontal: Spacing.lg, marginTop: Spacing.sm },
+  blockedBanner: {
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+    borderWidth: 1,
+    borderColor: '#F59E0B',
+    borderRadius: Radius.lg,
+    padding: Spacing.sm + 2,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  blockedTitle: { fontSize: Typography.xs, fontWeight: Typography.bold, color: '#F59E0B' },
+  blockedSub: { fontSize: 10, color: Colors.textSecondary, marginTop: 1 },
+  unblockBtn: {
+    backgroundColor: '#F59E0B',
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: Radius.full,
+  },
+  unblockBtnText: { fontSize: 10, fontWeight: Typography.bold, color: '#fff' },
+
+  unblockedBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    paddingVertical: 6,
+    paddingHorizontal: Spacing.md,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  unblockedText: { fontSize: Typography.xs, color: Colors.textMuted },
+  blockThisDateBtn: { paddingVertical: 2, paddingHorizontal: 6 },
+  blockThisDateText: { fontSize: Typography.xs, color: '#F59E0B', fontWeight: Typography.semibold },
 
   stylistFilterSection: { marginTop: Spacing.sm },
   stylistFilterScroll: { paddingHorizontal: Spacing.lg, gap: Spacing.xs },
@@ -595,6 +933,22 @@ const styles = StyleSheet.create({
   },
   modalTitle: { fontSize: Typography.lg, fontWeight: Typography.bold, color: Colors.textPrimary },
   modalSubtitle: { fontSize: Typography.xs, color: Colors.textMuted, marginBottom: 8 },
+  detailSection: {
+    backgroundColor: Colors.background,
+    padding: Spacing.sm,
+    borderRadius: Radius.md,
+    gap: 2,
+  },
+  detailLabel: { fontSize: 9, fontWeight: Typography.bold, color: Colors.textMuted },
+  detailValueBold: { fontSize: Typography.sm, fontWeight: Typography.bold, color: Colors.textPrimary },
+  detailValue: { fontSize: Typography.xs, color: Colors.textSecondary },
+  modalActionBtn: {
+    paddingVertical: 10,
+    borderRadius: Radius.lg,
+    alignItems: 'center',
+  },
+  modalActionBtnText: { color: '#fff', fontSize: Typography.xs, fontWeight: Typography.bold },
+
   reasonOption: {
     paddingVertical: 10,
     paddingHorizontal: 12,
