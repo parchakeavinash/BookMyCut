@@ -23,6 +23,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useShopkeeper } from '@/hooks/useShopkeeper';
 import { useShopkeeperBookings } from '@/hooks/useShopkeeperBookings';
+import { useNotifications } from '@/hooks/useNotifications';
 import { useAuthStore } from '@/stores/authStore';
 import { Colors, Typography, Spacing, Radius, Shadow } from '@/constants/colors';
 import { Booking, BookingStatus } from '@/types';
@@ -30,6 +31,7 @@ import { Booking, BookingStatus } from '@/types';
 export default function ShopkeeperDashboard() {
   const router = useRouter();
   const { user } = useAuthStore();
+  const { unreadCount } = useNotifications();
   const { shop, staff, closedDates, addClosedDate, deleteClosedDate, isLoading: isShopLoading } = useShopkeeper();
 
   // Selected date state (defaults to today)
@@ -271,6 +273,17 @@ export default function ShopkeeperDashboard() {
           <Text style={styles.ownerName}>{user?.full_name ?? 'Shopkeeper'} 👋</Text>
         </View>
         <View style={styles.headerActions}>
+          <TouchableOpacity
+            style={styles.bellBtn}
+            onPress={() => router.push('/notifications' as any)}
+          >
+            <Text style={styles.bellIcon}>🔔</Text>
+            {unreadCount > 0 && (
+              <View style={styles.bellBadge}>
+                <Text style={styles.bellBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
           <TouchableOpacity
             style={styles.calendarBtn}
             onPress={() => router.push('/(shopkeeper)/calendar')}
@@ -882,6 +895,31 @@ const styles = StyleSheet.create({
   greeting: { fontSize: Typography.sm, color: Colors.textSecondary },
   ownerName: { fontSize: Typography.xl, fontWeight: Typography.bold, color: Colors.textPrimary },
   headerActions: { flexDirection: 'row', gap: Spacing.xs, alignItems: 'center' },
+  bellBtn: {
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    paddingVertical: Spacing.xs + 2,
+    paddingHorizontal: Spacing.sm,
+    borderRadius: Radius.full,
+    position: 'relative',
+  },
+  bellIcon: { fontSize: Typography.xs },
+  bellBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: Colors.accent,
+    borderRadius: Radius.full,
+    minWidth: 16,
+    height: 16,
+    paddingHorizontal: 3,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#fff',
+  },
+  bellBadgeText: { color: '#fff', fontSize: 9, fontWeight: Typography.bold },
   calendarBtn: {
     backgroundColor: 'rgba(99, 102, 241, 0.15)',
     borderWidth: 1,

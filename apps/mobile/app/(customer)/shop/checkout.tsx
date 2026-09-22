@@ -14,6 +14,7 @@ import { useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
 import { useBookingDraftStore } from '@/stores/bookingDraftStore';
+import { scheduleLocalBookingReminder } from '@/services/notificationService';
 import { Colors, Typography, Spacing, Radius, Shadow } from '@/constants/colors';
 
 export default function CheckoutScreen() {
@@ -84,6 +85,9 @@ export default function CheckoutScreen() {
         }
         throw error;
       }
+
+      // Schedule local on-device notification reminder
+      scheduleLocalBookingReminder(booking).catch(() => {});
 
       // Clear draft on success
       reset();

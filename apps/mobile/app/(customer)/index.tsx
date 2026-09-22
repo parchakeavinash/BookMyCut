@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useDiscovery, ShopWithDetails } from '@/hooks/useDiscovery';
+import { useNotifications } from '@/hooks/useNotifications';
 import { useAuthStore } from '@/stores/authStore';
 import { Colors, Typography, Spacing, Radius, Shadow } from '@/constants/colors';
 
@@ -21,6 +22,7 @@ const CATEGORIES = ['All', 'haircut', 'beard', 'packages', 'facial', 'kids'];
 export default function CustomerHomeScreen() {
   const router = useRouter();
   const { user } = useAuthStore();
+  const { unreadCount } = useNotifications();
   const {
     shops,
     searchQuery,
@@ -57,8 +59,21 @@ export default function CustomerHomeScreen() {
           </Text>
           <Text style={styles.brandTitle}>Find your next haircut</Text>
         </View>
-        <View style={styles.logoBadge}>
-          <Text style={styles.logoBadgeText}>✂️</Text>
+        <View style={styles.headerRight}>
+          <TouchableOpacity
+            style={styles.bellBtn}
+            onPress={() => router.push('/notifications' as any)}
+          >
+            <Text style={styles.bellIcon}>🔔</Text>
+            {unreadCount > 0 && (
+              <View style={styles.bellBadge}>
+                <Text style={styles.bellBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+          <View style={styles.logoBadge}>
+            <Text style={styles.logoBadgeText}>✂️</Text>
+          </View>
         </View>
       </View>
 
@@ -231,6 +246,35 @@ const styles = StyleSheet.create({
   },
   greeting: { fontSize: Typography.sm, color: Colors.textSecondary, fontWeight: Typography.medium },
   brandTitle: { fontSize: Typography.xxl, fontWeight: Typography.bold, color: Colors.textPrimary, letterSpacing: -0.5 },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  bellBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+    ...Shadow.sm,
+  },
+  bellIcon: { fontSize: 20 },
+  bellBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: Colors.accent,
+    borderRadius: Radius.full,
+    minWidth: 18,
+    height: 18,
+    paddingHorizontal: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: '#fff',
+  },
+  bellBadgeText: { color: '#fff', fontSize: 10, fontWeight: Typography.bold },
   logoBadge: {
     width: 44,
     height: 44,
