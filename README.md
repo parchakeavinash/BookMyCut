@@ -84,7 +84,12 @@ BarberQ/
 │       ├── 20260922_003_rls.sql                         # Row Level Security policies
 │       ├── 20260922_004_cron.sql                        # Background reminder jobs
 │       ├── 20260922_005_seed.sql                        # Pilot shop & staff seed data
-│       └── 20260922_006_security_definer_functions.sql # Security definer updates
+│       ├── 20260922_006_security_definer_functions.sql # Security definer updates
+│       ├── 20260922_007_auth_enforcement.sql            # Auth enforcement
+│       ├── 20260922_008_shop_images_storage.sql        # Supabase Storage bucket & RLS
+│       ├── 20260922_009_realtime_bookings.sql          # Realtime bookings publication
+│       ├── 20260922_010_shopkeeper_actions.sql         # Shopkeeper booking actions & metrics
+│       └── 20260922_011_notifications_and_reminders.sql # Push notifications & reminder engine
 └── README.md
 ```
 
@@ -117,6 +122,8 @@ Apply migrations in sequence in your Supabase SQL Editor:
 3. `supabase/migrations/20260922_003_rls.sql`
 4. `supabase/migrations/20260922_005_seed.sql`
 5. `supabase/migrations/20260922_006_security_definer_functions.sql`
+6. `supabase/migrations/20260922_010_shopkeeper_actions.sql`
+7. `supabase/migrations/20260922_011_notifications_and_reminders.sql`
 
 ### 4. Install Dependencies & Run
 ```bash
@@ -143,6 +150,19 @@ node test_concurrency.cjs
 ```
 This fires simultaneous booking attempts for the same barber and slot, verifying that exactly **1 succeeds** and the conflicting request is safely rejected with `SLOT_UNAVAILABLE`.
 
+### Master End-to-End Integration Test Suite
+Run the 19-test end-to-end integration test suite:
+```bash
+node apps/mobile/test_phase9_e2e.cjs
+```
+This tests:
+- Customer discovery & city filtering
+- Dynamic availability engine & slot generation
+- Advisory lock concurrency & double-booking guard
+- Shopkeeper live queue, daily metrics, & booking lifecycle RPCs (Confirm, Complete, No-Show, Cancel)
+- Edge cases: shop closed dates, business hours integrity, breaks
+- Notifications table access, reminders engine execution, & read status guards
+
 ### Type Checking & Web Export
 ```bash
 cd apps/mobile
@@ -159,8 +179,10 @@ npx expo export --platform web
 - [x] **Phase 4:** Nearby Shop Discovery & Search
 - [x] **Phase 5:** Slot Selection & Real-Time Availability Feed
 - [x] **Phase 6:** Booking Checkout & Appointment Confirmation
-- [ ] **Phase 7:** Shopkeeper Schedule Dashboard & Booking Actions
-- [ ] **Phase 8:** Push Reminders & Notifications (FCM / APNs)
+- [x] **Phase 7:** Shopkeeper Schedule Dashboard & Booking Actions
+- [x] **Phase 8:** Push Reminders & Notifications (FCM / APNs)
+- [x] **Phase 9:** Polish, Edge Cases & Master End-to-End Testing
+- [ ] **Phase 10:** Pilot Launch & Production Readiness
 
 ---
 
