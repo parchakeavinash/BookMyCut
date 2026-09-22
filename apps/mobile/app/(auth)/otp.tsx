@@ -1,6 +1,7 @@
 // ============================================================
 // BarberQ — OTP verification screen
-// Receives phone from params, verifies 6-digit OTP.
+// Supports both email OTP (current) and phone OTP (when Twilio ready).
+// Auto-detects mode from params: { email } or { phone }.
 // On success: Supabase session created → auth guard routes user.
 // ============================================================
 
@@ -20,7 +21,13 @@ const RESEND_COOLDOWN = 60; // seconds
 
 export default function OtpScreen() {
   const router = useRouter();
-  const { phone } = useLocalSearchParams<{ phone: string }>();
+  const params = useLocalSearchParams<{ phone?: string; email?: string }>();
+
+  // Support both modes
+  const isEmailMode = !!params.email;
+  const identifier = params.email ?? params.phone ?? '';
+  const displayId = isEmailMode ? identifier : identifier; // masked if phone
+
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
   const [resendTimer, setResendTimer] = useState(RESEND_COOLDOWN);
@@ -44,23 +51,32 @@ export default function OtpScreen() {
     if (otp.length !== OTP_LENGTH || loading) return;
     setLoading(true);
 
-    const { data, error } = await supabase.auth.verifyOtp({
-      phone: phone!,
-      token: otp,
-      type: 'sms',
-    });
+    let result;
+    if (isEmailMode) {
+      result = await supabase.auth.verifyOtp({
+        email: identifier,
+        token: otp,
+        type: 'email',
+      });
+    } else {
+      result = await supabase.auth.verifyOtp({
+        phone: identifier,
+        token: otp,
+        type: 'sms',
+      });
+    }
 
     setLoading(false);
 
-    if (error) {
+    if (result.error) {
       Alert.alert('Invalid code', 'Please check the code and try again.');
       setOtp('');
       return;
     }
 
-    // Auth state change listener in useAuth hook will handle routing
-    // If user profile doesn't exist yet → profile-setup
-    // If user profile exists → customer or shopkeeper dashboard
+    // Auth state change in useAuth hook handles routing:
+    // → new user (no users row)  : /(auth)/profile-setup
+    // → existing user            : /(customer) or /(shopkeeper)/dashboard
   };
 
   const handleResend = async () => {
@@ -68,8 +84,13 @@ export default function OtpScreen() {
     setResendTimer(RESEND_COOLDOWN);
     setOtp('');
 
-    const { error } = await supabase.auth.signInWithOtp({ phone: phone! });
-    if (error) Alert.alert('Error', error.message);
+    if (isEmailMode) {
+      const { error } = await supabase.auth.signInWithOtp({ email: identifier });
+      if (error) Alert.alert('Error', error.message);
+    } else {
+      const { error } = await supabase.auth.signInWithOtp({ phone: identifier });
+      if (error) Alert.alert('Error', error.message);
+    }
   };
 
   return (
@@ -84,12 +105,12 @@ export default function OtpScreen() {
             <Text style={styles.backBtnText}>←</Text>
           </TouchableOpacity>
           <View style={styles.logoMark}>
-            <Text style={styles.logoText}>📱</Text>
+            <Text style={styles.logoText}>{isEmailMode ? '📧' : '📱'}</Text>
           </View>
           <Text style={styles.title}>Enter the code</Text>
           <Text style={styles.subtitle}>
             We sent a 6-digit code to{'\n'}
-            <Text style={styles.phoneHighlight}>{phone}</Text>
+            <Text style={styles.identifierHighlight}>{displayId}</Text>
           </Text>
         </View>
 
@@ -199,7 +220,7 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     lineHeight: 22,
   },
-  phoneHighlight: {
+  identifierHighlight: {
     fontWeight: Typography.semibold,
     color: Colors.textPrimary,
   },

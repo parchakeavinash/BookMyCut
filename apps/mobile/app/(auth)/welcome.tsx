@@ -43,7 +43,7 @@ export default function WelcomeScreen() {
           onPress={() => router.push('/(auth)/phone')}
           activeOpacity={0.85}
         >
-          <Text style={styles.primaryButtonText}>Continue with Phone</Text>
+          <Text style={styles.primaryButtonText}>Continue with Email</Text>
         </TouchableOpacity>
 
         <Text style={styles.termsText}>

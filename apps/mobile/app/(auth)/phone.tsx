@@ -1,6 +1,7 @@
 // ============================================================
-// BarberQ — Phone number entry screen
-// Collects phone number, sends OTP via Supabase Auth.
+// BarberQ — Email OTP entry screen
+// Collects email, sends magic OTP via Supabase Auth.
+// Phone OTP will be re-enabled once Twilio is configured.
 // ============================================================
 
 import { useState } from 'react';
@@ -16,19 +17,21 @@ import { Colors, Typography, Spacing, Radius, Shadow } from '@/constants/colors'
 
 export default function PhoneScreen() {
   const router = useRouter();
-  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const isValid = phone.length === 10 && /^\d+$/.test(phone);
+  const isValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 
   const handleSendOtp = async () => {
     if (!isValid) return;
     setLoading(true);
 
-    const fullPhone = `+91${phone}`; // India prefix — location-agnostic: move to country picker later
-
     const { error } = await supabase.auth.signInWithOtp({
-      phone: fullPhone,
+      email: email.trim(),
+      options: {
+        // Don't auto-create users — profile setup handles that
+        shouldCreateUser: true,
+      },
     });
 
     setLoading(false);
@@ -38,8 +41,8 @@ export default function PhoneScreen() {
       return;
     }
 
-    // Pass phone to OTP screen
-    router.push({ pathname: '/(auth)/otp', params: { phone: fullPhone } });
+    // Pass email to OTP screen
+    router.push({ pathname: '/(auth)/otp', params: { email: email.trim() } });
   };
 
   return (
@@ -56,7 +59,7 @@ export default function PhoneScreen() {
           <View style={styles.logoMark}>
             <Text style={styles.logoText}>✂</Text>
           </View>
-          <Text style={styles.title}>What's your number?</Text>
+          <Text style={styles.title}>What's your email?</Text>
           <Text style={styles.subtitle}>
             We'll send a 6-digit code to verify your identity.
           </Text>
@@ -64,21 +67,22 @@ export default function PhoneScreen() {
 
         {/* Input */}
         <View style={styles.inputSection}>
-          <View style={styles.phoneRow}>
-            <View style={styles.countryCode}>
-              <Text style={styles.countryCodeText}>🇮🇳 +91</Text>
-            </View>
-            <TextInput
-              style={styles.phoneInput}
-              placeholder="98765 43210"
-              placeholderTextColor={Colors.textMuted}
-              keyboardType="phone-pad"
-              maxLength={10}
-              value={phone}
-              onChangeText={setPhone}
-              autoFocus
-            />
-          </View>
+          <TextInput
+            style={styles.emailInput}
+            placeholder="you@example.com"
+            placeholderTextColor={Colors.textMuted}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
+            value={email}
+            onChangeText={setEmail}
+            autoFocus
+            returnKeyType="done"
+            onSubmitEditing={handleSendOtp}
+          />
+          <Text style={styles.hint}>
+            💡 Switching to phone OTP soon — Twilio setup in progress
+          </Text>
         </View>
 
         {/* CTA */}
@@ -92,7 +96,7 @@ export default function PhoneScreen() {
             {loading ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.buttonText}>Send OTP</Text>
+              <Text style={styles.buttonText}>Send Code</Text>
             )}
           </TouchableOpacity>
         </View>
@@ -137,6 +141,7 @@ const styles = StyleSheet.create({
   },
   logoText: {
     fontSize: 26,
+    color: '#fff',
   },
   title: {
     fontSize: Typography.xxl,
@@ -152,37 +157,24 @@ const styles = StyleSheet.create({
   inputSection: {
     flex: 1,
     justifyContent: 'center',
+    gap: Spacing.md,
   },
-  phoneRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  emailInput: {
     backgroundColor: Colors.surface,
     borderRadius: Radius.md,
     borderWidth: 1.5,
     borderColor: Colors.border,
-    overflow: 'hidden',
-    ...Shadow.sm,
-  },
-  countryCode: {
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.md,
-    borderRightWidth: 1,
-    borderRightColor: Colors.border,
-    backgroundColor: Colors.surfaceMuted,
-  },
-  countryCodeText: {
-    fontSize: Typography.base,
+    paddingVertical: Spacing.md + 2,
+    fontSize: Typography.md,
     fontWeight: Typography.medium,
     color: Colors.textPrimary,
+    ...Shadow.sm,
   },
-  phoneInput: {
-    flex: 1,
-    fontSize: Typography.xl,
-    fontWeight: Typography.semibold,
-    color: Colors.textPrimary,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.md,
-    letterSpacing: 2,
+  hint: {
+    fontSize: Typography.xs,
+    color: Colors.textMuted,
+    textAlign: 'center',
   },
   footer: {
     gap: Spacing.md,
