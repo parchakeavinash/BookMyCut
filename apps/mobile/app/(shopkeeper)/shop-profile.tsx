@@ -245,6 +245,14 @@ export default function ShopProfileScreen() {
           </View>
         </View>
 
+        {/* Hours & Breaks Shortcut */}
+        <TouchableOpacity
+          style={styles.hoursShortcutBtn}
+          onPress={() => router.push('/(shopkeeper)/hours')}
+        >
+          <Text style={styles.hoursShortcutBtnText}>🕒 Manage Working Hours & Holidays →</Text>
+        </TouchableOpacity>
+
         {/* Save Button */}
         <TouchableOpacity style={styles.saveBtn} onPress={handleSaveProfile} disabled={saving}>
           {saving ? (
@@ -361,6 +369,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   addPhotoBtnText: { color: '#fff', fontSize: Typography.sm, fontWeight: Typography.bold },
+  hoursShortcutBtn: {
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    paddingVertical: Spacing.md,
+    borderRadius: Radius.lg,
+    alignItems: 'center',
+    marginTop: Spacing.xs,
+  },
+  hoursShortcutBtnText: {
+    color: Colors.accent,
+    fontSize: Typography.sm,
+    fontWeight: Typography.bold,
+  },
   saveBtn: {
     backgroundColor: Colors.accent,
     paddingVertical: Spacing.md,

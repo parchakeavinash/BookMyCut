@@ -46,9 +46,18 @@ export default function ShopkeeperLayout() {
       <Tabs.Screen
         name="dashboard"
         options={{
-          title: 'Dashboard',
+          title: 'Queue',
           tabBarIcon: ({ focused }) => (
             <Text style={[styles.icon, focused && styles.iconActive]}>📊</Text>
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="calendar"
+        options={{
+          title: 'Schedule',
+          tabBarIcon: ({ focused }) => (
+            <Text style={[styles.icon, focused && styles.iconActive]}>📅</Text>
           ),
         }}
       />
@@ -71,15 +80,6 @@ export default function ShopkeeperLayout() {
         }}
       />
       <Tabs.Screen
-        name="hours"
-        options={{
-          title: 'Hours',
-          tabBarIcon: ({ focused }) => (
-            <Text style={[styles.icon, focused && styles.iconActive]}>🕒</Text>
-          ),
-        }}
-      />
-      <Tabs.Screen
         name="shop-profile"
         options={{
           title: 'Profile',
@@ -97,7 +97,7 @@ export default function ShopkeeperLayout() {
         }}
       />
       <Tabs.Screen
-        name="calendar"
+        name="hours"
         options={{
           href: null,
         }}

@@ -156,6 +156,15 @@ export interface Booking {
   // Joined
   shops?: Pick<Shop, 'id' | 'name' | 'address' | 'area' | 'city' | 'phone'>;
   staff?: Pick<Staff, 'id' | 'name' | 'avatar_url'>;
+  customer?: BookingCustomer;
+}
+
+export interface BookingCustomer {
+  id: string;
+  full_name: string;
+  phone: string | null;
+  avatar_url: string | null;
+  no_show_count?: number;
 }
 
 export interface Notification {
