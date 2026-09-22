@@ -36,7 +36,11 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "build:web": "expo export --platform web",
+    "check:types": "tsc --noEmit",
+    "test:e2e": "node test_phase9_e2e.cjs",
+    "check:production": "node verify_production_readiness.cjs"
   },
   "private": true
 }
