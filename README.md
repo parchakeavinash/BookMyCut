@@ -158,7 +158,7 @@ npx expo export --platform web
 - [x] **Phase 3:** Shopkeeper Setup & Profile Management
 - [x] **Phase 4:** Nearby Shop Discovery & Search
 - [x] **Phase 5:** Slot Selection & Real-Time Availability Feed
-- [ ] **Phase 6:** Booking Checkout & Appointment Confirmation
+- [x] **Phase 6:** Booking Checkout & Appointment Confirmation
 - [ ] **Phase 7:** Shopkeeper Schedule Dashboard & Booking Actions
 - [ ] **Phase 8:** Push Reminders & Notifications (FCM / APNs)
 
