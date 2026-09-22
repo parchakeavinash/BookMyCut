@@ -2,6 +2,7 @@
 // BarberQ — useAuth hook
 // Initializes Supabase session on mount, syncs to Zustand.
 // Fetches user profile from the `users` table after auth.
+// Handles: initial load, OTP verification, token refresh, sign out.
 // ============================================================
 
 import { useEffect } from 'react';
@@ -14,7 +15,7 @@ export function useAuth() {
     useAuthStore();
 
   useEffect(() => {
-    // 1. Get existing session on app mount
+    // 1. Check for an existing session on mount (persisted via AsyncStorage)
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       if (session?.user) {
@@ -24,10 +25,20 @@ export function useAuth() {
       }
     });
 
-    // 2. Listen for auth state changes (login, logout, token refresh)
+    // 2. Listen for auth state changes:
+    //    - SIGNED_IN: fired after OTP verify, token refresh
+    //    - SIGNED_OUT: fired after sign out
+    //    - TOKEN_REFRESHED: automatic refresh
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
+      async (event, session) => {
         setSession(session);
+
+        if (event === 'SIGNED_OUT') {
+          setUser(null);
+          setLoading(false);
+          return;
+        }
+
         if (session?.user) {
           await fetchUserProfile(session.user.id);
         } else {
@@ -40,6 +51,11 @@ export function useAuth() {
     return () => subscription.unsubscribe();
   }, []);
 
+  /**
+   * Fetch the user's profile row from the `users` table.
+   * Called after any auth event that provides a user ID.
+   * If the row doesn't exist yet, the user will be sent to profile-setup.
+   */
   const fetchUserProfile = async (userId: string) => {
     const { data, error } = await supabase
       .from('users')
@@ -48,7 +64,8 @@ export function useAuth() {
       .single();
 
     if (error || !data) {
-      // User row doesn't exist yet — will be created after profile setup
+      // No profile yet — profile-setup screen will create it
+      setUser(null);
       setLoading(false);
       return;
     }

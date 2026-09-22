@@ -21,23 +21,32 @@ function AuthGuard() {
   useEffect(() => {
     if (isLoading) return;
 
-    const inAuthGroup = segments[0] === '(auth)';
+    const segs = segments as string[];
+    const inAuthGroup      = segs[0] === '(auth)';
+    const inCustomerGroup  = segs[0] === '(customer)';
+    const inShopkeeperGroup= segs[0] === '(shopkeeper)';
+    const inAdminGroup     = segs[0] === '(admin)';
 
+    // Not authenticated at all → welcome screen
     if (!session) {
-      // Not logged in → send to auth screens
       if (!inAuthGroup) router.replace('/(auth)/welcome');
       return;
     }
 
+    // Authenticated but no profile yet → must complete profile setup
     if (!user) {
-      // Logged in but no profile yet → send to profile setup
-      router.replace('/(auth)/profile-setup');
+      if (segs[1] !== 'profile-setup') {
+        router.replace('/(auth)/profile-setup');
+      }
       return;
     }
 
-    // Route by role
-    if (!inAuthGroup) return; // Already in the right section
+    // Already on the right role group → do nothing
+    if (inCustomerGroup && user.role === 'customer') return;
+    if (inShopkeeperGroup && user.role === 'shopkeeper') return;
+    if (inAdminGroup && user.role === 'admin') return;
 
+    // Route to correct group based on role
     switch (user.role) {
       case 'customer':
         router.replace('/(customer)');
@@ -49,12 +58,16 @@ function AuthGuard() {
         router.replace('/(admin)');
         break;
     }
-  }, [session, user, isLoading]);
+  }, [session, user, isLoading, segments]);
 
   if (isLoading) {
     return (
       <View style={styles.loader}>
-        <ActivityIndicator size="large" color={Colors.accent} />
+        <View style={styles.loaderBrand}>
+          <View style={styles.loaderLogo}>
+            <ActivityIndicator size="large" color={Colors.accent} />
+          </View>
+        </View>
       </View>
     );
   }
@@ -79,5 +92,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: Colors.background,
+  },
+  loaderBrand: {
+    alignItems: 'center',
+    gap: 16,
+  },
+  loaderLogo: {
+    width: 64,
+    height: 64,
+    borderRadius: 16,
+    backgroundColor: Colors.surfaceMuted,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

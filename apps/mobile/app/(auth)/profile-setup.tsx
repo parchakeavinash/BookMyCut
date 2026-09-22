@@ -11,7 +11,6 @@ import {
   TouchableOpacity, ActivityIndicator,
   Alert, ScrollView
 } from 'react-native';
-import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
@@ -19,7 +18,6 @@ import { Colors, Typography, Spacing, Radius, Shadow } from '@/constants/colors'
 import { UserRole } from '@/types';
 
 export default function ProfileSetupScreen() {
-  const router = useRouter();
   const { session, setUser } = useAuthStore();
   const [name, setName] = useState('');
   const [role, setRole] = useState<UserRole>('customer');
@@ -31,38 +29,31 @@ export default function ProfileSetupScreen() {
     if (!isValid || !session?.user) return;
     setLoading(true);
 
+    // Use upsert so duplicate calls are idempotent
     const { data, error } = await supabase
       .from('users')
-      .insert({
-        id:        session.user.id,
-        phone:     session.user.phone ?? null,
-        email:     session.user.email ?? null,
-        full_name: name.trim(),
-        role,
-      })
+      .upsert(
+        {
+          id:        session.user.id,
+          phone:     session.user.phone ?? null,
+          email:     session.user.email ?? null,
+          full_name: name.trim(),
+          role,
+        },
+        { onConflict: 'id' }
+      )
       .select()
       .single();
 
     setLoading(false);
 
     if (error) {
-      // If user row already exists (duplicate session), just fetch it
-      if (error.code === '23505') {
-        const { data: existing } = await supabase
-          .from('users')
-          .select('*')
-          .eq('id', session.user.id)
-          .single();
-        if (existing) {
-          setUser(existing as any);
-          return; // auth guard will route
-        }
-      }
       Alert.alert('Error', error.message);
       return;
     }
 
-    setUser(data as any); // auth guard in _layout.tsx will route by role
+    // setUser triggers auth guard to route by role
+    setUser(data as any);
   };
 
   return (
@@ -232,7 +223,7 @@ const styles = StyleSheet.create({
   },
   roleCardSelected: {
     borderColor: Colors.accent,
-    backgroundColor: '#EEF2FF', // Indigo 50
+    backgroundColor: '#EEF2FF',
   },
   roleIcon: { fontSize: 28 },
   roleTitle: {
