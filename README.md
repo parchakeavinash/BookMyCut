@@ -154,9 +154,9 @@ npx expo export --platform web
 
 ## 🗺️ Roadmap
 - [x] **Phase 1:** Core Schema, Dynamic Availability Engine, Advisory Locks & Expo Setup
-- [ ] **Phase 2:** Authentication (Phone OTP, Auth Guard, Role-Based Routing)
-- [ ] **Phase 3:** Shopkeeper Setup & Profile Management
-- [ ] **Phase 4:** Nearby Shop Discovery & Search
+- [x] **Phase 2:** Authentication (Phone OTP, Auth Guard, Role-Based Routing)
+- [x] **Phase 3:** Shopkeeper Setup & Profile Management
+- [x] **Phase 4:** Nearby Shop Discovery & Search
 - [ ] **Phase 5:** Slot Selection & Real-Time Availability Feed
 - [ ] **Phase 6:** Booking Checkout & Appointment Confirmation
 - [ ] **Phase 7:** Shopkeeper Schedule Dashboard & Booking Actions
