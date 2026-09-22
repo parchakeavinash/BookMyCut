@@ -89,15 +89,10 @@ export default function ShopDetailsScreen() {
       Alert.alert('Select a service', 'Please select a service first.');
       return;
     }
-    // Will link directly into Phase 5 / Phase 6 slot selection
-    Alert.alert(
-      'Proceed to Booking',
-      `Ready to select appointment time for ${srv.name} (₹${srv.price}). Proceed to Slot Selection?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Continue', onPress: () => {} },
-      ]
-    );
+    router.push({
+      pathname: '/(customer)/shop/book',
+      params: { shopId: shop.id, serviceId: srv.id },
+    } as any);
   };
 
   return (
