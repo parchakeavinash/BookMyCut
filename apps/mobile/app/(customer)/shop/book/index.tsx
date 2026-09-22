@@ -155,13 +155,7 @@ export default function SlotSelectionScreen() {
     draftStore.setDate(selectedDate);
     draftStore.setSlot(selectedSlot.slot_time);
 
-    Alert.alert(
-      'Slot Reserved! 🎉',
-      `Confirmed slot for ${selectedService.name} on ${selectedDate} at ${selectedSlot.displayTime}.\n\nReady for Phase 6 Checkout!`,
-      [
-        { text: 'OK' }
-      ]
-    );
+    router.push('/(customer)/shop/checkout' as any);
   };
 
   return (
