@@ -44,6 +44,19 @@ export default function CustomerLayout() {
           tabBarIcon: () => <TabIcon icon="👤" />,
         }}
       />
+      <Tabs.Screen
+        name="shop/[id]"
+        options={{
+          href: null,
+          tabBarStyle: { display: 'none' },
+        }}
+      />
+      <Tabs.Screen
+        name="shop/book"
+        options={{
+          href: null,
+        }}
+      />
     </Tabs>
   );
 }
